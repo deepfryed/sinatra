@@ -5,6 +5,8 @@ require 'rack'
 require 'rack/builder'
 require 'sinatra/showexceptions'
 
+require 'oniguruma' if RUBY_VERSION < '1.9'
+
 # require tilt if available; fall back on bundled version.
 begin
   require 'tilt'
@@ -868,7 +870,7 @@ module Sinatra
               else "(?<#{$2[1..-1]}>[^/?&#]+)"
             end
           end
-          /^#{pattern}$/
+          Module.const_defined?(:Oniguruma) ? Oniguruma::ORegexp.new("^#{pattern}$") : /^#{pattern}$/
         elsif path.respond_to? :match
           path
         else
