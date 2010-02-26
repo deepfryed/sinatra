@@ -73,6 +73,10 @@ Sinatraでは、ルートはHTTPメソッドとURLマッチングパターンが
     "Hello, #{params[:captures].first}!"
   end
 
+  get %r{/hello/(?<who>\w+)} do
+    "Hello, #{params[:who]}!"
+  end
+
 ブロックパラーメータを使用した場合:
 
   get %r{/hello/([\w]+)} do |c|

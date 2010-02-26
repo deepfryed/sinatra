@@ -75,6 +75,10 @@ Route matching with Regular Expressions:
     "Hello, #{params[:captures].first}!"
   end
 
+  get %r{/hello/(?<who>\w+)} do
+    "Hello, #{params[:who]}!"
+  end
+
 Or with a block parameter:
 
   get %r{/hello/([\w]+)} do |c|
