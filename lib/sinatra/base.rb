@@ -454,26 +454,23 @@ module Sinatra
         original_params = @params
         path            = unescape(@request.path_info)
 
-        routes.each do |pattern, keys, conditions, block|
+        routes.each do |pattern, conditions, block|
           if match = pattern.match(path)
-            values = match.captures.to_a
-            params =
-              if keys.any?
-                keys.zip(values).inject({}) do |hash,(k,v)|
-                  if k == 'splat'
-                    (hash[k] ||= []) << v
-                  else
-                    hash[k] = v
-                  end
-                  hash
-                end
-              elsif values.any?
-                {'captures' => values}
-              else
-                {}
+            captures = match.captures.to_a
+            params   = if pattern.named_captures.any?
+              pattern.named_captures.inject({}) do |hash, (name, indexes)|
+                values     = match.values_at(*indexes)
+                hash[name] = values.size == 1 ? values.first : values
+                hash
               end
-            @params = original_params.merge(params)
-            @block_params = values
+            elsif captures.any?
+              {'captures' => captures}
+            else
+              {}
+            end
+
+            @params       = original_params.merge(params)
+            @block_params = captures
 
             pass_block = catch(:pass) do
               conditions.each { |cond|
@@ -839,7 +836,7 @@ module Sinatra
 
         options.each {|option, args| send(option, *args)}
 
-        pattern, keys = compile(path)
+        pattern = compile(path)
         conditions, @conditions = @conditions, []
 
         define_method "#{verb} #{path}", &block
@@ -854,7 +851,7 @@ module Sinatra
         invoke_hook(:route_added, verb, path, block)
 
         (@routes[verb] ||= []).
-          push([pattern, keys, conditions, block]).last
+          push([pattern, conditions, block]).last
       end
 
       def invoke_hook(name, *args)
@@ -862,27 +859,18 @@ module Sinatra
       end
 
       def compile(path)
-        keys = []
         if path.respond_to? :to_str
           special_chars = %w{. + ( )}
-          pattern =
-            path.to_str.gsub(/((:\w+)|[\*#{special_chars.join}])/) do |match|
-              case match
-              when "*"
-                keys << 'splat'
-                "(.*?)"
-              when *special_chars
-                Regexp.escape(match)
-              else
-                keys << $2[1..-1]
-                "([^/?&#]+)"
-              end
+          pattern = path.to_str.gsub(/((:\w+)|[\*#{special_chars.join}])/) do |match|
+            case match
+              when '*'            then '(?<splat>.*?)'
+              when *special_chars then Regexp.escape(match)
+              else "(?<#{$2[1..-1]}>[^/?&#]+)"
             end
-          [/^#{pattern}$/, keys]
-        elsif path.respond_to?(:keys) && path.respond_to?(:match)
-          [path, path.keys]
+          end
+          /^#{pattern}$/
         elsif path.respond_to? :match
-          [path, keys]
+          path
         else
           raise TypeError, path
         end

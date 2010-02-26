@@ -1,4 +1,5 @@
 require File.dirname(__FILE__) + '/helper'
+require 'enumerator' if RUBY_VERSION < '1.9'
 
 # Helper method for easy route pattern matching testing
 def route_def(pattern)
@@ -6,18 +7,16 @@ def route_def(pattern)
 end
 
 class RegexpLookAlike
-  class MatchData
-    def captures
-      ["this", "is", "a", "test"]
-    end
+  class MatchData < Array
+    alias_method :captures, :to_a
   end
 
   def match(string)
-    ::RegexpLookAlike::MatchData.new if string == "/this/is/a/test/"
+    ::RegexpLookAlike::MatchData.new(%w{this is a test}) if string == "/this/is/a/test/"
   end
 
-  def keys
-    ["one", "two", "three", "four"]
+  def named_captures
+    ["one", "two", "three", "four"].map.with_index
   end
 end
 
@@ -161,8 +160,8 @@ class RoutingTest < Test::Unit::TestCase
   it "supports single splat params like /*" do
     mock_app {
       get '/*' do
-        assert params['splat'].kind_of?(Array)
-        params['splat'].join "\n"
+        assert params['splat']
+        params['splat']
       end
     }
 
@@ -192,7 +191,7 @@ class RoutingTest < Test::Unit::TestCase
     mock_app {
       get '/:foo/*' do
         assert_equal 'foo', params['foo']
-        assert_equal ['bar/baz'], params['splat']
+        assert_equal 'bar/baz', params['splat']
       end
     }
 
@@ -348,7 +347,7 @@ class RoutingTest < Test::Unit::TestCase
     mock_app {
       get '/:foo/*' do
         assert_equal 'hello world', params['foo']
-        assert_equal ['how are you'], params['splat']
+        assert_equal 'how are you', params['splat']
         nil
       end
     }

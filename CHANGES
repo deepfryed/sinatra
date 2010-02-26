@@ -1,3 +1,15 @@
+= head (unreleased)
+
+ * Route names may appear more than once.
+
+ * Route names appearing more than once result in params value array.
+
+ * Route splats follow named route rules.
+
+ * Splat * is now shorthand for :splat.
+
+ * Route regexps with named capture groups are merged into params.
+
 = 1.0 / 2010-01-28 (prerelease)
 
  * It's now possible to register blocks to run after each request using
