@@ -10,6 +10,12 @@ require 'oniguruma' if RUBY_VERSION < '1.9'
 # require tilt if available; fall back on bundled version.
 begin
   require 'tilt'
+  if Tilt::VERSION < '0.7'
+    warn "WARN: sinatra requires tilt >= 0.7; you have #{Tilt::VERSION}. " +
+         "loading bundled version..."
+    Object.send :remove_const, :Tilt
+    raise LoadError
+  end
 rescue LoadError
   require 'sinatra/tilt'
 end
@@ -242,6 +248,7 @@ module Sinatra
     # matches the time specified, execution is immediately halted with a
     # '304 Not Modified' response.
     def last_modified(time)
+      return unless time
       time = time.to_time if time.respond_to?(:to_time)
       time = time.httpdate if time.respond_to?(:httpdate)
       response['Last-Modified'] = time
@@ -286,15 +293,19 @@ module Sinatra
   #
   # Possible options are:
   #   :layout       If set to false, no layout is rendered, otherwise
-  #                 the specified layout is used (Ignored for `sass`)
+  #                 the specified layout is used (Ignored for `sass` and `less`)
   #   :locals       A hash with local variables that should be available
   #                 in the template
   module Templates
+    include Tilt::CompileSite
+
     def erb(template, options={}, locals={})
+      options[:outvar] = '@_out_buf'
       render :erb, template, options, locals
     end
 
     def erubis(template, options={}, locals={})
+      options[:outvar] = '@_out_buf'
       render :erubis, template, options, locals
     end
 
@@ -305,6 +316,11 @@ module Sinatra
     def sass(template, options={}, locals={})
       options[:layout] = false
       render :sass, template, options, locals
+    end
+
+    def less(template, options={}, locals={})
+      options[:layout] = false
+      render :less, template, options, locals
     end
 
     def builder(template=nil, options={}, locals={}, &block)
@@ -342,20 +358,23 @@ module Sinatra
 
     def compile_template(engine, data, options, views)
       @template_cache.fetch engine, data, options do
+        template = Tilt[engine]
+        raise "Template engine not found: #{engine}" if template.nil?
+
         case
         when data.is_a?(Symbol)
           body, path, line = self.class.templates[data]
           if body
             body = body.call if body.respond_to?(:call)
-            Tilt[engine].new(path, line.to_i, options) { body }
+            template.new(path, line.to_i, options) { body }
           else
             path = ::File.join(views, "#{data}.#{engine}")
-            Tilt[engine].new(path, 1, options)
+            template.new(path, 1, options)
           end
         when data.is_a?(Proc) || data.is_a?(String)
           body = data.is_a?(String) ? Proc.new { data } : data
           path, line = self.class.caller_locations.first
-          Tilt[engine].new(path, line.to_i, options, &body)
+          template.new(path, line.to_i, options, &body)
         else
           raise ArgumentError
         end
@@ -599,10 +618,16 @@ module Sinatra
       @env['sinatra.error'] = boom
 
       dump_errors!(boom) if settings.dump_errors?
-      raise boom         if settings.raise_errors? || settings.show_exceptions?
+      raise boom         if settings.show_exceptions?
 
       @response.status = 500
-      error_block! boom.class, Exception
+      if res = error_block!(boom.class)
+        res
+      elsif settings.raise_errors?
+        raise boom
+      else
+        error_block!(Exception)
+      end
     end
 
     # Find an custom error block for the key(s) specified.
@@ -612,8 +637,7 @@ module Sinatra
         while base.respond_to?(:errors)
           if block = base.errors[key]
             # found a handler, eval and return result
-            res = instance_eval(&block)
-            return res
+            return instance_eval(&block)
           else
             base = base.superclass
           end
@@ -684,7 +708,7 @@ module Sinatra
         if value.kind_of?(Proc)
           metadef(option, &value)
           metadef("#{option}?") { !!__send__(option) }
-          metadef("#{option}=") { |val| set(option, Proc.new{val}) }
+          metadef("#{option}=") { |val| metadef(option, &Proc.new{val}) }
         elsif value == self && option.respond_to?(:to_hash)
           option.to_hash.each { |k,v| set(k, v) }
         elsif respond_to?("#{option}=")
@@ -1016,8 +1040,8 @@ module Sinatra
     reset!
 
     set :environment, (ENV['RACK_ENV'] || :development).to_sym
-    set :raise_errors, Proc.new { !development? }
-    set :dump_errors, Proc.new { development? }
+    set :raise_errors, Proc.new { test? }
+    set :dump_errors, Proc.new { !test? }
     set :show_exceptions, Proc.new { development? }
     set :clean_trace, true
     set :sessions, false
@@ -1092,13 +1116,9 @@ module Sinatra
   # top-level. Subclassing Sinatra::Base is heavily recommended for
   # modular applications.
   class Application < Base
-    set :raise_errors, Proc.new { test? }
-    set :dump_errors, true
-    set :sessions, false
     set :logging, Proc.new { ! test? }
     set :method_override, true
     set :run, Proc.new { ! test? }
-    set :static, true
 
     def self.register(*extensions, &block) #:nodoc:
       added_methods = extensions.map {|m| m.public_instance_methods }.flatten
