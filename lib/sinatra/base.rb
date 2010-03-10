@@ -10,8 +10,8 @@ require 'oniguruma' if RUBY_VERSION < '1.9'
 # require tilt if available; fall back on bundled version.
 begin
   require 'tilt'
-  if Tilt::VERSION < '0.7'
-    warn "WARN: sinatra requires tilt >= 0.7; you have #{Tilt::VERSION}. " +
+  if Tilt::VERSION < '0.8'
+    warn "WARN: sinatra requires tilt >= 0.8; you have #{Tilt::VERSION}. " +
          "loading bundled version..."
     Object.send :remove_const, :Tilt
     raise LoadError
@@ -21,7 +21,7 @@ rescue LoadError
 end
 
 module Sinatra
-  VERSION = '1.0.a'
+  VERSION = '1.0.b'
 
   # The request object. See Rack::Request for more info:
   # http://rack.rubyforge.org/doc/classes/Rack/Request.html
