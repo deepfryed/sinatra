@@ -1,6 +1,7 @@
 require 'rake/clean'
 require 'rake/testtask'
 require 'fileutils'
+require 'date'
 
 task :default => :test
 task :spec => :test
@@ -12,9 +13,19 @@ end
 
 # SPECS ===============================================================
 
-Rake::TestTask.new(:test) do |t|
-  t.test_files = FileList['test/*_test.rb']
-  t.ruby_opts = ['-rubygems -I.'] if defined? Gem
+if !ENV['NO_TEST_FIX'] and RUBY_VERSION == '1.9.2' and RUBY_PATCHLEVEL == 0
+  # Avoids seg fault
+  task(:test) do
+    second_run  = %w[settings rdoc markaby templates static textile].map { |l| "test/#{l}_test.rb" }
+    first_run   = Dir.glob('test/*_test.rb') - second_run
+    [first_run, second_run].each { |f| sh "testrb #{f.join ' '}" }
+  end
+else
+  Rake::TestTask.new(:test) do |t|
+    t.test_files = FileList['test/*_test.rb']
+    t.ruby_opts = ['-rubygems'] if defined? Gem
+    t.ruby_opts << '-I.'
+  end
 end
 
 # Rcov ================================================================
@@ -22,7 +33,7 @@ namespace :test do
   desc 'Mesures test coverage'
   task :coverage do
     rm_f "coverage"
-    rcov = "rcov --text-summary --test-unit-only -Ilib"
+    rcov = "rcov --text-summary -Ilib"
     system("#{rcov} --no-html --no-color test/*_test.rb")
   end
 end
@@ -36,11 +47,11 @@ task 'doc'     => ['doc:api']
 
 task 'doc:api' => ['doc/api/index.html']
 
-file 'doc/api/index.html' => FileList['lib/**/*.rb','README.rdoc'] do |f|
+file 'doc/api/index.html' => FileList['lib/**/*.rb', 'README.*'] do |f|
   require 'rbconfig'
   hanna = RbConfig::CONFIG['ruby_install_name'].sub('ruby', 'hanna')
   rb_files = f.prerequisites
-  sh((<<-end).gsub(/\s+/, ' '))
+  sh(<<-end.gsub(/\s+/, ' '))
     #{hanna}
       --charset utf8
       --fmt html
@@ -53,6 +64,26 @@ file 'doc/api/index.html' => FileList['lib/**/*.rb','README.rdoc'] do |f|
   end
 end
 CLEAN.include 'doc/api'
+
+# README ===============================================================
+task :add_template, [:name] do |t, args|
+  Dir.glob('README.*') do |file|
+    code = File.read(file)
+    if code =~ /^===.*#{args.name.capitalize}/
+      puts "Already covered in #{file}"
+    else
+      template = code[/===[^\n]*Liquid.*index\.liquid<\/tt>[^\n]*/m]
+      if !template
+        puts "Liquid not found in #{file}"
+      else
+        puts "Adding section to #{file}"
+        template = template.gsub(/Liquid/, args.name.capitalize).gsub(/liquid/, args.name.downcase)        
+        code.gsub! /^(\s*===.*CoffeeScript)/, "\n" << template << "\n\\1"
+        File.open(file, "w") { |f| f << code }
+      end
+    end
+  end
+end
 
 # PACKAGING ============================================================
 
@@ -112,5 +143,17 @@ if defined?(Gem)
     spec = [head,manifest,tail].join("  # = MANIFEST =\n")
     File.open(f.name, 'w') { |io| io.write(spec) }
     puts "updated #{f.name}"
+  end
+
+  task 'release' => package('.gem') do
+    sh <<-SH
+      gem install #{package('.gem')} --local &&
+      gem push #{package('.gem')}  &&
+      git add sinatra.gemspec &&
+      git commit --allow-empty -m '#{source_version} release'  &&
+      git tag -s #{source_version} -m '#{source_version} release'  &&
+      git push && (git push sinatra || true) &&
+      git push --tags && (git push sinatra --tags || true)
+    SH
   end
 end
