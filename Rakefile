@@ -6,28 +6,24 @@ require 'date'
 task :default => :test
 task :spec => :test
 
+CLEAN.include "**/*.rbc"
+
 def source_version
   line = File.read('lib/sinatra/base.rb')[/^\s*VERSION = .*/]
   line.match(/.*VERSION = '(.*)'/)[1]
 end
 
 # SPECS ===============================================================
-
-if !ENV['NO_TEST_FIX'] and RUBY_VERSION == '1.9.2' and RUBY_PATCHLEVEL == 0
-  # Avoids seg fault
-  task(:test) do
-    second_run  = %w[settings rdoc markaby templates static textile].map { |l| "test/#{l}_test.rb" }
-    first_run   = Dir.glob('test/*_test.rb') - second_run
-    [first_run, second_run].each { |f| sh "testrb #{f.join ' '}" }
-  end
-else
-  Rake::TestTask.new(:test) do |t|
-    t.test_files = FileList['test/*_test.rb']
-    t.ruby_opts = ['-rubygems'] if defined? Gem
-    t.ruby_opts << '-I.'
-  end
+task :test do
+  ENV['LANG'] = 'C'
+  ENV.delete 'LC_CTYPE'
 end
 
+Rake::TestTask.new(:test) do |t|
+  t.test_files = FileList['test/*_test.rb']
+  t.ruby_opts = ['-rubygems'] if defined? Gem
+  t.ruby_opts << '-I.'
+end
 # Rcov ================================================================
 namespace :test do
   desc 'Mesures test coverage'
@@ -44,25 +40,7 @@ end
 
 desc 'Generate RDoc under doc/api'
 task 'doc'     => ['doc:api']
-
-task 'doc:api' => ['doc/api/index.html']
-
-file 'doc/api/index.html' => FileList['lib/**/*.rb', 'README.*'] do |f|
-  require 'rbconfig'
-  hanna = RbConfig::CONFIG['ruby_install_name'].sub('ruby', 'hanna')
-  rb_files = f.prerequisites
-  sh(<<-end.gsub(/\s+/, ' '))
-    #{hanna}
-      --charset utf8
-      --fmt html
-      --inline-source
-      --line-numbers
-      --main README.rdoc
-      --op doc/api
-      --title 'Sinatra API Documentation'
-      #{rb_files.join(' ')}
-  end
-end
+task('doc:api') { sh "yardoc -o doc/api" }
 CLEAN.include 'doc/api'
 
 # README ===============================================================
@@ -145,7 +123,7 @@ if defined?(Gem)
     puts "updated #{f.name}"
   end
 
-  task 'release' => package('.gem') do
+  task 'release' => ['test', package('.gem')] do
     sh <<-SH
       gem install #{package('.gem')} --local &&
       gem push #{package('.gem')}  &&

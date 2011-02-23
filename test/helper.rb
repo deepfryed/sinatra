@@ -1,6 +1,8 @@
 ENV['RACK_ENV'] = 'test'
 Encoding.default_external = "UTF-8" if defined? Encoding
 
+RUBY_ENGINE = 'ruby' unless defined? RUBY_ENGINE
+
 begin
   require 'rack'
 rescue LoadError
@@ -51,6 +53,10 @@ class Test::Unit::TestCase
 
   def body
     response.body.to_s
+  end
+
+  def assert_body(value)
+    assert_equal value.lstrip.gsub(/\s*\n\s*/, ""), body.lstrip.gsub(/\s*\n\s*/, "")
   end
 
   # Delegate other missing methods to response.

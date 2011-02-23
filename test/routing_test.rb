@@ -1,3 +1,4 @@
+# I like coding: UTF-8
 require File.dirname(__FILE__) + '/helper'
 require 'enumerator' if RUBY_VERSION < '1.9'
 
@@ -21,7 +22,7 @@ class RegexpLookAlike
 end
 
 class RoutingTest < Test::Unit::TestCase
-  %w[get put post delete].each do |verb|
+  %w[get put post delete options].each do |verb|
     it "defines #{verb.upcase} request handlers with #{verb}" do
       mock_app {
         send verb, '/hello' do
@@ -66,6 +67,14 @@ class RoutingTest < Test::Unit::TestCase
     get '/bar'
     assert_equal 404, status
     assert_equal 'pass', response.headers['X-Cascade']
+  end
+
+  it "allows using unicode" do
+    mock_app do
+      get('/föö') { }
+    end
+    get '/f%C3%B6%C3%B6'
+    assert_equal 200, status
   end
 
   it "overrides the content-type in error handlers" do
@@ -169,6 +178,38 @@ class RoutingTest < Test::Unit::TestCase
     assert_equal "foo=;bar=", body
   end
 
+  it "supports named captures like %r{/hello/(?<person>[^/?#]+)} on Ruby >= 1.9" do
+    next if RUBY_VERSION < '1.9'
+    mock_app {
+      get Regexp.new('/hello/(?<person>[^/?#]+)') do
+        "Hello #{params['person']}"
+      end
+    }
+    get '/hello/Frank'
+    assert_equal 'Hello Frank', body
+  end
+
+  it "supports optional named captures like %r{/page(?<format>.[^/?#]+)?} on Ruby >= 1.9" do
+    next if RUBY_VERSION < '1.9'
+    mock_app {
+      get Regexp.new('/page(?<format>.[^/?#]+)?') do
+        "format=#{params[:format]}"
+      end
+    }
+
+    get '/page.html'
+    assert ok?
+    assert_equal "format=.html", body
+
+    get '/page.xml'
+    assert ok?
+    assert_equal "format=.xml", body
+
+    get '/page'
+    assert ok?
+    assert_equal "format=", body
+  end
+
   it "supports single splat params like /*" do
     mock_app {
       get '/*' do
@@ -237,7 +278,7 @@ class RoutingTest < Test::Unit::TestCase
     assert_equal 'right on', body
   end
 
-  it "literally matches . in paths" do
+  it "literally matches dot in paths" do
     route_def '/test.bar'
 
     get '/test.bar'
@@ -246,14 +287,14 @@ class RoutingTest < Test::Unit::TestCase
     assert not_found?
   end
 
-  it "literally matches $ in paths" do
+  it "literally matches dollar sign in paths" do
     route_def '/test$/'
 
     get '/test$/'
     assert ok?
   end
 
-  it "literally matches + in paths" do
+  it "literally matches plus sign in paths" do
     route_def '/te+st/'
 
     get '/te%2Bst/'
@@ -262,7 +303,7 @@ class RoutingTest < Test::Unit::TestCase
     assert not_found?
   end
 
-  it "literally matches () in paths" do
+  it "literally matches parens in paths" do
     route_def '/test(bar)/'
 
     get '/test(bar)/'
@@ -601,6 +642,18 @@ class RoutingTest < Test::Unit::TestCase
     assert_equal 'Hello World', body
   end
 
+  it "treats missing user agent like an empty string" do
+    mock_app do
+      user_agent(/.*/)
+      get '/' do
+        "Hello World"
+      end
+    end
+    get '/'
+    assert_equal 200, status
+    assert_equal 'Hello World', body
+  end
+
   it "makes captures in user agent pattern available in params[:agent]" do
     mock_app {
       user_agent(/Foo (.*)/)
@@ -626,7 +679,7 @@ class RoutingTest < Test::Unit::TestCase
     get '/', {}, { 'HTTP_ACCEPT' => 'application/xml' }
     assert ok?
     assert_equal 'application/xml', body
-    assert_equal 'application/xml', response.headers['Content-Type']
+    assert_equal 'application/xml;charset=utf-8', response.headers['Content-Type']
 
     get '/', {}, { :accept => 'text/html' }
     assert !ok?
@@ -724,6 +777,11 @@ class RoutingTest < Test::Unit::TestCase
   end
 
   it 'raises an ArgumentError with block arity > 1 and too many values' do
+    if RUBY_ENGINE == "rbx"
+      $stderr.puts "\npending test: #{__method__}, #{__FILE__}:#{__LINE__} "
+      next
+    end
+
     mock_app {
       get '/:foo/:bar/:baz' do |foo, bar|
         'quux'

@@ -111,6 +111,18 @@ class HelpersTest < Test::Unit::TestCase
       response = request.get('/', 'SERVER_PORT' => '444')
       assert_equal 'http://example.org:444/foo', response['Location']
     end
+
+    it 'works behind a reverse proxy' do
+      mock_app do
+        get '/' do
+          redirect '/foo'
+        end
+      end
+
+      request = Rack::MockRequest.new(@app)
+      response = request.get('/', 'HTTP_X_FORWARDED_HOST' => 'example.com', 'SERVER_PORT' => '8080')
+      assert_equal 'http://example.com/foo', response['Location']
+    end
   end
 
   describe 'error' do
@@ -419,6 +431,13 @@ class HelpersTest < Test::Unit::TestCase
       assert_equal File.mtime(@file).httpdate, response['Last-Modified']
     end
 
+    it 'allows passing in a differen Last-Modified response header with :last_modified' do
+      time = Time.now
+      send_file_app :last_modified => time
+      get '/file.txt'
+      assert_equal time.httpdate, response['Last-Modified']
+    end
+
     it "returns a 404 when not found" do
       mock_app {
         get '/' do
@@ -445,6 +464,38 @@ class HelpersTest < Test::Unit::TestCase
       send_file_app :filename => 'foo.txt'
       get '/file.txt'
       assert_equal 'attachment; filename="foo.txt"', response['Content-Disposition']
+    end
+
+    it "is able to send files with unkown mime type" do
+      @file = File.dirname(__FILE__) + '/file.foobar'
+      File.open(@file, 'wb') { |io| io.write('Hello World') }
+      send_file_app
+      get '/file.txt'
+      assert_equal 'application/octet-stream', response['Content-Type']
+    end
+
+    it "does not override Content-Type if already set and no explicit type is given" do
+      path = @file
+      mock_app do
+        get '/' do
+          content_type :png
+          send_file path
+        end
+      end
+      get '/'
+      assert_equal 'image/png', response['Content-Type']
+    end
+
+    it "does override Content-Type even if already set, if explicit type is given" do
+      path = @file
+      mock_app do
+        get '/' do
+          content_type :png
+          send_file path, :type => :gif
+        end
+      end
+      get '/'
+      assert_equal 'image/gif', response['Content-Type']
     end
   end
 
@@ -560,6 +611,9 @@ class HelpersTest < Test::Unit::TestCase
             get '/compare', {}, { 'HTTP_IF_MODIFIED_SINCE' => 'Sun, 26 Sep 2010 23:43:52 GMT' }
             assert_equal 200, status
             assert_equal 'foo', body
+            get '/compare', {}, { 'HTTP_IF_MODIFIED_SINCE' => 'Sun, 26 Sep 2100 23:43:52 GMT' }
+            assert_equal 304, status
+            assert_equal '', body
           end
         end
 
@@ -649,6 +703,44 @@ class HelpersTest < Test::Unit::TestCase
       get '/foo', {}, 'HTTP_REFERER' => 'http://github.com'
       assert redirect?
       assert_equal "http://github.com", response.location
+    end
+  end
+
+  describe 'uri' do
+    it 'generates absolute urls' do
+      mock_app { get('/') { uri }}
+      get '/'
+      assert_equal 'http://example.org/', body
+    end
+
+    it 'includes path_info' do
+      mock_app { get('/:name') { uri }}
+      get '/foo'
+      assert_equal 'http://example.org/foo', body
+    end
+
+    it 'allows passing an alternative to path_info' do
+      mock_app { get('/:name') { uri '/bar' }}
+      get '/foo'
+      assert_equal 'http://example.org/bar', body
+    end
+
+    it 'includes script_name' do
+      mock_app { get('/:name') { uri '/bar' }}
+      get '/foo', {}, { "SCRIPT_NAME" => '/foo' }
+      assert_equal 'http://example.org/foo/bar', body
+    end
+
+    it 'is aliased to #url' do
+      mock_app { get('/') { url }}
+      get '/'
+      assert_equal 'http://example.org/', body
+    end
+
+    it 'is aliased to #to' do
+      mock_app { get('/') { to }}
+      get '/'
+      assert_equal 'http://example.org/', body
     end
   end
 

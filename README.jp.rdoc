@@ -173,7 +173,7 @@ Rackレスポンス、Rackボディオブジェクト、HTTPステータスコ�
 
 hamlを使うにはhamlライブラリが必要です:
 
-  ## hamlを読み込みます
+  # hamlを読み込みます
   require 'haml'
 
   get '/' do
@@ -196,7 +196,7 @@ hamlを使うにはhamlライブラリが必要です:
 
 === Erb テンプレート
 
-  ## erbを読み込みます
+  # erbを読み込みます
   require 'erb'
 
   get '/' do
@@ -209,7 +209,7 @@ hamlを使うにはhamlライブラリが必要です:
 
 erubisテンプレートを表示するには、erubisライブラリが必要です:
 
-  ## erubisを読み込みます
+  # erubisを読み込みます
   require 'erubis'
 
   get '/' do
@@ -222,7 +222,7 @@ erubisテンプレートを表示するには、erubisライブラリが必要�
 
 builderを使うにはbuilderライブラリが必要です:
 
-  ## builderを読み込みます
+  # builderを読み込みます
   require 'builder'
 
   get '/' do
@@ -235,7 +235,7 @@ builderを使うにはbuilderライブラリが必要です:
 
 鋸を使うには鋸ライブラリが必要です:
 
-  ## 鋸を読み込みます
+  # 鋸を読み込みます
   require 'nokogiri'
 
   get '/' do
@@ -248,7 +248,7 @@ builderを使うにはbuilderライブラリが必要です:
 
 Sassテンプレートを使うにはsassライブラリが必要です:
 
-  ## hamlかsassを読み込みます
+  # hamlかsassを読み込みます
   require 'sass'
 
   get '/stylesheet.css' do
@@ -272,7 +272,7 @@ see {Options and Configurations}[http://www.sinatrarb.com/configuration.html],
 
 Scssテンプレートを使うにはsassライブラリが必要です:
 
-  ## hamlかsassを読み込みます
+  # hamlかsassを読み込みます
   require 'sass'
 
   get '/stylesheet.css' do
@@ -296,7 +296,7 @@ see {Options and Configurations}[http://www.sinatrarb.com/configuration.html],
 
 Lessテンプレートを使うにはlessライブラリが必要です:
 
-  ## lessを読み込みます
+  # lessを読み込みます
   require 'less'
 
   get '/stylesheet.css' do
@@ -309,7 +309,7 @@ Lessテンプレートを使うにはlessライブラリが必要です:
 
 Liquidテンプレートを使うにはliquidライブラリが必要です:
 
-  ## liquidを読み込みます
+  # liquidを読み込みます
   require 'liquid'
 
   get '/' do
@@ -327,7 +327,7 @@ LiquidテンプレートからRubyのメソッド(+yield+を除く)を呼び出�
 
 Markdownテンプレートを使うにはrdiscountライブラリが必要です:
 
-  ## rdiscountを読み込みます
+  # rdiscountを読み込みます
   require "rdiscount"
   
   get '/' do
@@ -350,7 +350,7 @@ markdownからメソッドを呼び出すことも、localsに変数を渡すこ
 
 Textileテンプレートを使うにはRedClothライブラリが必要です:
 
-  ## redclothを読み込みます
+  # redclothを読み込みます
   require "redcloth"
 
   get '/' do
@@ -373,7 +373,7 @@ textileからメソッドを呼び出すことも、localsに変数を渡すこ�
 
 RDocテンプレートを使うにはRDocライブラリが必要です:
 
-  ## rdocを読み込みます
+  # rdocを読み込みます
   require "rdoc"
 
   get '/' do
@@ -396,7 +396,7 @@ rdocからメソッドを呼び出すことも、localsに変数を渡すこと�
 
 Radiusテンプレートを使うにはradiusライブラリが必要です:
 
-  ## radiusを読み込みます
+  # radiusを読み込みます
   require 'radius'
 
   get '/' do
@@ -414,7 +414,7 @@ RadiusテンプレートからRubyのメソッド(+yield+を除く)を呼び出�
 
 Markabyテンプレートを使うにはmarkabyライブラリが必要です:
 
-  ## markabyを読み込みます
+  # markabyを読み込みます
   require 'markaby'
 
   get '/' do
@@ -427,7 +427,7 @@ Markabyテンプレートを使うにはmarkabyライブラリが必要です:
 
 Slimテンプレートを使うにはslimライブラリが必要です:
 
-  ## slimを読み込みます
+  # slimを読み込みます
   require 'slim'
 
   get '/' do
@@ -440,7 +440,7 @@ Slimテンプレートを使うにはslimライブラリが必要です:
 
 CoffeeScriptテンプレートを表示するにはcoffee-scriptライブラリと`coffee`バイナリが必要です:
 
-  ## coffee-scriptを読み込みます
+  # coffee-scriptを読み込みます
   require 'coffee-script'
 
   get '/application.js' do
