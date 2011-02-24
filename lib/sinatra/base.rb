@@ -94,12 +94,12 @@ module Sinatra
     end
 
     # Halt processing and redirect to the URI provided.
-    def redirect(uri, *args)
+    def redirect(url, *args)
       status 302
 
       # According to RFC 2616 section 14.30, "the field value consists of a
       # single absolute URI"
-      response['Location'] = url(uri, settings.absolute_redirects?, settings.prefixed_redirects?)
+      response['Location'] = uri(url, settings.absolute_redirects?, settings.prefixed_redirects?)
       halt(*args)
     end
 
